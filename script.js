@@ -1,7 +1,3 @@
-'use strict';
-
-/////////////////////////////////////////////////
-/////////////////////////////////////////////////
 // BANKIST APP
 
 // Data 1
@@ -100,20 +96,29 @@ const inputTransferAmount = document.querySelector('.form__input--amount');
 const inputLoanAmount = document.querySelector('.form__input--loan-amount');
 const inputCloseUsername = document.querySelector('.form__input--user');
 const inputClosePin = document.querySelector('.form__input--pin');
+
 //selfmade button
 const converterButton = document.querySelector('.convert-btn');
 const convertParagraph = document.querySelectorAll('conver-p');
 const balanceDate = document.querySelector('.date');
-/////////////////////////////////////////////////
-/////////////////////////////////////////////////
+
 /////////BANKIST APP
 
+const usdFormatter = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+});
+
+const eurFormatter = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'EUR',
+});
+
 let currentAccount;
-currentAccount = account1;
+// currentAccount = account1;
 
 const displayMovements = function (movements) {
   containerMovements.innerHTML = '';
-  // console.log(account1);
 
   movements.forEach(function (mov, i) {
     const type = mov > 0 ? 'deposit' : 'withdrawal';
@@ -129,31 +134,38 @@ const displayMovements = function (movements) {
     const daysPassed = function (date1) {
       return date1 / (1000 * 60 * 60 * 24);
     };
+
     const displayDays = daysPassed(
       // new Date(year, month, day)
       new Date(currentAccount.movements[i])
     );
+
     const formatedMov = formatCur(
       mov,
       currentAccount.locale,
       currentAccount.currency
     );
+
     const html = `
   <div class="movements__row">
-    <div class="movements__type movements__type--${type}">${i + 1} ${type}</div>
-     <div class="movements__date">${displayDate}  </div>
+    <div class="movements__type movements__type--${type}">#${
+      i + 1
+    } ${type}</div>
+     <div class="movements__date">${displayDate}</div>
     <div class="movements__value">${formatedMov}</div>
   </div>`;
-    containerMovements.insertAdjacentHTML('afterbegin', html);
+
+    containerMovements.insertAdjacentHTML('beforeend', html);
   });
 };
 
 const formatCur = function (value, locale, currency) {
-  return new Intl.NumberFormat(currentAccount.locale, {
+  return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: currency,
   }).format(value);
 };
+
 const eurToUsd = 0.99;
 const movements = [200, 0, 0, 0, -200, 340, -300, -20, 50, 400, -460];
 const movementsUSD = movements.map(mov => (mov * eurToUsd).toFixed(2));
@@ -181,17 +193,24 @@ const createUsernames = function (accs) {
 createUsernames(accounts);
 
 const calcDisplayBalance = function (movements) {
+  if (!currentAccount) return;
+
   const balance = movements.reduce((acc, cur) => acc + cur, 0);
+
+  currentAccount.balance = balance;
   //console.log(balance);
   labelBalance.textContent = formatCur(
-    currentAccount.balance,
+    balance,
     currentAccount.locale,
     currentAccount.currency
   );
+
   return balance;
 };
 
 const addBalance = function (accounts) {
+  if (!currentAccount) return;
+
   const balances = accounts.forEach(mov => {
     const balance = calcDisplayBalance(mov.movements);
     mov.balance = balance.toFixed(2);
@@ -231,32 +250,38 @@ const calcDisplaySummary = function (acc) {
 };
 
 converterButton.addEventListener('click', function () {
+  console.log(currentAccount);
   if (converterButton.textContent === 'USD$') {
-    const convert1 = converterUSD(currentAccount.movements);
-    labelBalance.textContent = `${convert1}$`;
+    labelBalance.textContent = usdFormatter.format(
+      currentAccount.balance * 1.02
+    );
     converterButton.textContent = 'EUR€';
   } else {
-    const convert2 = calcDisplayBalance(currentAccount.movements);
-    labelBalance.textContent = `${convert2}€`;
+    labelBalance.textContent = eurFormatter.format(currentAccount.balance);
     converterButton.textContent = 'USD$';
   }
 });
 
 btnLogin.addEventListener('click', function (event) {
   event.preventDefault();
-  currentAccount = accounts.find(
+
+  const userLogin = accounts.find(
     acc => acc.username === inputLoginUsername.value
   );
+
   if (
-    currentAccount?.pin === Number(inputLoginPin.value) &&
-    currentAccount.username === String(inputLoginUsername.value)
+    userLogin?.pin === Number(inputLoginPin.value) &&
+    userLogin.username === String(inputLoginUsername.value)
   ) {
+    currentAccount = userLogin;
+
     labelWelcome.textContent = `Welcome back , ${
       currentAccount.owner.split(' ')[0]
     }`;
+
     updateUI(currentAccount);
     containerApp.style.opacity = 100;
-
+    createDate(currentAccount);
     inputLoginUsername.textContent = '';
     inputLoginPin.textContent = '';
   } else {
@@ -299,28 +324,37 @@ btnSort.addEventListener('click', function (e) {
 const updateUI = function (acc) {
   calcDisplayBalance(acc.movements);
   calcDisplaySummary(acc);
+
   displayMovements(acc.movements);
   converterUSD(acc.movements);
 };
 
 btnTransfer.addEventListener('click', function (event) {
   event.preventDefault();
+
   const amount = Number(inputTransferAmount.value);
+
   console.log(amount);
+
   const accountToTransfer = accounts.find(
     acc => acc.username === inputTransferTo.value
   );
+
   if (accountToTransfer) {
     accountToTransfer.movements.push(amount);
     currentAccount.movements.push(-amount);
+
+    calcDisplayBalance(currentAccount.movements);
     createDate(currentAccount);
     updateUI(currentAccount);
   } else {
     console.log('Wrong username input !');
   }
 });
+
 btnLoan.addEventListener('click', function (e) {
   e.preventDefault();
+
   const amountt = Number(inputLoanAmount.value);
 
   if (
@@ -332,7 +366,7 @@ btnLoan.addEventListener('click', function (e) {
       currentAccount.movementsDates.push(new Date());
       updateUI(currentAccount);
       createDate(currentAccount);
-      const date = new Date(currentAccount.movements);
+      const date = new Date();
       const day = `${date.getDate()}`.padStart(2, 0);
       const month = `${date.getMonth() + 1}`.padStart(2, 0);
       const year = date.getFullYear();
@@ -355,9 +389,10 @@ btnClose.addEventListener('click', function (e) {
     ).textContent = `Thank you ${currentAccount.owner} , reload the page to login again !`;
   }
 });
+
 //currentAccount = account1;
-updateUI(currentAccount);
-containerApp.style.opacity = 100;
+if (currentAccount) updateUI(currentAccount);
+containerApp.style.opacity = 0;
 
 const createDate = acc => {
   const now = new Date();
@@ -369,233 +404,3 @@ const createDate = acc => {
   acc.movementsDates.push(now);
   labelDate.textContent = `${day}/${month}/${year} , ${hour}:${minutes}`;
 };
-
-// const ingredients = ['olives', 'spinach'];
-
-// const pizzaTimer = setTimeout(
-//   (ing1, ing2) => console.log(`Here is your pizza with ${ing1},${ing2}`),
-//   5000,
-//   ...ingredients
-// );
-// console.log('waiting');
-// if (ingredients.includes('spinach')) clearTimeout(pizzaTimer);
-// const locale = navigator.language;
-// console.log(locale);
-
-// const num = 3884764.23;
-// const options = {
-//   style: 'unit',
-//   unit: 'celsius',
-// };
-// console.log('US:', new Intl.NumberFormat('en-US', options).format(num));
-// console.log('DE:', new Intl.NumberFormat('de-DE', options).format(num));
-// console.log('Sy:', new Intl.NumberFormat('ar-SY', options).format(num));
-
-//console.log(dayss);
-
-// const now = new Date();
-// const day = `${now.getDate()}`.padStart(2, 0);
-// const month = `${now.getMonth()}`.padStart(2, 0);
-// const year = now.getFullYear();
-// const hour = now.getHours();
-// const minutes = now.getMinutes();
-// labelDate.textContent = `${day}/${month}/${year} , ${hour}:${minutes}`;
-///////////////////////////////////////////////////////////////////////////////////////
-
-// const future = new Date(2037, 10, 19, 15, 23);
-// console.log(Number(future));
-
-//console.log(new Array(1, 2, 3, 4, 5, 6, 7, 8));
-// const x = new Array(7);
-//x.fill(4);
-//console.log(x);
-
-// const arr = [1, 2, 3, 4, 5, 6, 7];
-//x.fill(1);
-//arr.fill(69, 1, 5);
-// console.log(arr);
-// console.log(x);
-// const y = Array.from({ length: 7 }, () => 1);
-// console.log(y);
-
-// const z = Array.from({ length: 7 }, (cur, i) => {
-//   console.log(cur, i);
-// });
-//console.log(z);
-//clicking the price
-// labelBalance.addEventListener('click', function () {
-//   const movementsUI = Array.from(
-//     document.querySelectorAll('.movements__value')
-//   );
-//   console.log(movementsUI.map(el => Number(el.textContent.replace('€', ''))));
-// });
-
-//LECTURES
-// const now = new Date();
-// console.log(now);
-// console.log(new Date('March 23,2002'));
-// console.log(new Date(account1.movementsDates[0]));
-// console.log(Math.sqrt(4));
-// console.log(8 ** (1 / 3));
-// const arr = [12, 2, 4, 5, 99, 1];
-// console.log(Math.max(...arr));
-// console.log(Math.min(...arr));
-
-// console.log(Math.trunc(Math.random() * 6) + 1);
-// const randomInt = (min, max) =>
-//   Math.trunc(Math.random() * (max - min) + 1) + min;
-// console.log(randomInt(10, 20));
-// console.log(23 === 23.0);
-// console.log(1 / 10);
-// console.log(3 / 10);
-// console.log(0.1 + 0.2);
-//1.
-// const bankDepositSums = accounts
-//   .flatMap(acc => acc.movements)
-//   .filter(dep => dep > 0)
-//   .reduce((sum, cur) => sum + cur, 0);
-// console.log(bankDepositSums);
-
-//2.
-// const numDeposits = accounts
-//   .map(val => val.movements)
-//   .flat()
-//   .filter(val => val >= 1000);
-// console.log(numDeposits.length);
-
-//3.
-// const { deposits, withdrawals } = accounts
-//   .flatMap(acc => acc.movements)
-//   .reduce(
-//     (sum, cur) => {
-//       cur > 0 ? (sum.deposits += cur) : (sum.withdrawals += cur);
-//       sum.movs += 1;
-//       return sum;
-//     },
-//     { deposits: 0, withdrawals: 0 }
-//   );
-// console.log(deposits, withdrawals);
-//.4
-// const convertTitleCase = function (title) {
-//   console.log(convertTitleCase('This is a nice title'));
-//   console.log(convertTitleCase('This is a long title'));
-// };
-
-// const owners = ['Jonas', 'Zach', 'Adam', 'Martha'];
-// console.log(owners);
-// console.log(owners.sort());
-
-// console.log(movements);
-// console.log(movements.sort());
-
-// const y = movements.sort((a, b) => {
-//   if (a > b) return 1;
-//   if (b > a) return -1;
-// });
-// console.log(y);
-// console.log(movements);
-// console.log(movements.includes(0));
-
-// const accMoves = movements.some(mov => mov === 400);
-// console.log(accMoves);
-
-// const accDeposits = movements.every(mov => mov > 0 || mov < 0);
-// console.log(accDeposits);
-
-// console.log(account2);
-
-// const z = movements.find(mov => mov < 0);
-// console.log(movements);
-// console.log(z);
-
-// console.log(accounts);
-// const account = accounts.find(acc => acc.owner === 'Jessica Davis');
-// console.log(account);
-//UNCOMMENT FROM HERE ^^^^^
-
-// console.log(x);
-
-// const totalDepositUSD = movements
-//   .filter(mov => mov > 0)
-//   .map(mov => mov * eurToUsd)
-//   .reduce((acc, mov) => acc + mov, 0);
-// console.log(movements);
-// console.log(totalDepositUSD);
-// const deposits = movements.filter(function (mov) {
-//   return mov > 0;
-// });
-// console.log(movements);
-// console.log(deposits);
-
-// const withdrawals = movements.filter(mov => mov < 0);
-// console.log(withdrawals);
-
-// const max = movements.reduce((acc, mov) => {
-//   // console.log(mov);
-//   // console.log(acc);
-//   console.log(mov);
-//   if (acc > mov) {
-//     return acc;
-//   } else {
-//     return mov;
-//   }
-// }, movements[1]);
-
-// console.log(max);
-
-//#CHALENGEEE 2
-// const data1 = [5, 2, 4, 1, 15, 8, 3];
-// const data2 = [16, 6, 10, 5, 6, 1, 4];
-
-// const ageAverage = function (data) {
-//   const avg = data
-//     .filter(dat => dat > 2)
-//     .map(dat => 16 + dat * 4)
-//     .reduce((dat, nn) => (dat + nn) / data.length);
-//   console.log(avg);
-// };
-// ageAverage(data1);
-
-// const calcAverage = function (ages) {
-//   const humanAge = ages.map(age => {
-//     if (age <= 2) {
-//       return 2 * age;
-//     } else if (age > 2) {
-//       return 16 + age * 4;
-//     }
-//   });
-//   return humanAge;
-// };
-
-// const filteredAge = function (ages) {
-//   const dogAge = ages.filter(age => {
-//     if (age > 18) {
-//       return age;
-//     }
-//   });
-//   return dogAge;
-// };
-// const av1 = calcAverage(data1);
-// const av2 = calcAverage(data2);
-// console.log(av1);
-// console.log(av2);
-
-// const filtered1 = filteredAge(av1);
-// console.log(filtered1);
-// const filtered2 = filteredAge(av2);
-// console.log(filtered2);
-
-// const adultAvg = function (ages) {
-//   let x = ages.length;
-//   const res = ages.reduce(function (age, cur) {
-//     return age + cur;
-//   });
-
-//   return res / x;
-// };
-// const avg1 = adultAvg(filtered1);
-// console.log(avg1);
-
-// //const y = filtered1.reduce();
-// const avg2 = adultAvg(filtered2);
-// console.log(avg2.toFixed(2));
